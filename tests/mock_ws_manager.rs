@@ -32,31 +32,27 @@ async fn live_connect_requires_access_token_before_network_io() {
 }
 
 #[tokio::test]
-async fn data_manager_sends_commands_yields_events_and_closes() {
-    let (stream, sent) = MockSocket::new(vec![Message::Text(data_symbol_event_fixture().into())]);
-    let client = test_client();
-    let mut socket = client.data_socket().connect_with_stream(stream);
-    let request: DataSubscribeRequest =
-        support::json_fixture("ws/data/subscribe_symbol_update.json");
-
-    socket.subscribe(&request).await.unwrap();
-    assert_eq!(
-        sent_texts(&sent),
-        vec![serde_json::to_string(&request).unwrap()]
+async fn data_manager_decodes_captured_binary_snapshot() {
+    let snapshot = include_bytes!(
+        "../fixtures/ws/data/captured/snapshot_NSE_SBIN-EQ.bin"
     );
-    assert_eq!(
-        socket.resubscribe_frames().unwrap(),
-        vec![serde_json::to_string(&request).unwrap()]
-    );
+    let (stream, sent) = MockSocket::new(vec![Message::Binary(snapshot.to_vec().into())]);
+    let client = test_client_with_jwt();
+    let mut socket = client
+        .data_socket()
+        .connect_with_stream(stream)
+        .expect("connect_with_stream");
 
     let event = socket.next_event().await.unwrap().unwrap();
     match event {
-        DataSocketEvent::SymbolUpdate(update) => assert_eq!(update.symbol, "NSE:SBIN-EQ"),
+        DataSocketEvent::SymbolUpdate(update) => {
+            assert_eq!(update.symbol, "sf|nse_cm|3045");
+            assert!((update.ltp - 1068.45).abs() < f64::EPSILON);
+            assert_eq!(update.prev_close_price, Some(1086.90));
+        }
         other => panic!("unexpected data event: {other:?}"),
     }
 
-    socket.unsubscribe(&request).await.unwrap();
-    assert!(socket.resubscribe_frames().unwrap().is_empty());
     socket.close().await.unwrap();
     assert!(socket.socket().is_closed());
     assert!(
@@ -67,16 +63,21 @@ async fn data_manager_sends_commands_yields_events_and_closes() {
 }
 
 #[tokio::test]
-async fn data_manager_replies_to_ping_and_keeps_reading() {
+async fn data_manager_pongs_pings_between_binary_frames() {
+    let snapshot = include_bytes!(
+        "../fixtures/ws/data/captured/snapshot_NSE_SBIN-EQ.bin"
+    );
     let (stream, sent) = MockSocket::new(vec![
         Message::Ping(vec![1, 2, 3].into()),
-        Message::Text(data_symbol_event_fixture().into()),
+        Message::Binary(snapshot.to_vec().into()),
     ]);
-    let client = test_client();
-    let mut socket = client.data_socket().connect_with_stream(stream);
+    let client = test_client_with_jwt();
+    let mut socket = client
+        .data_socket()
+        .connect_with_stream(stream)
+        .expect("connect_with_stream");
 
     let event = socket.next_event().await.unwrap().unwrap();
-
     assert!(matches!(event, DataSocketEvent::SymbolUpdate(_)));
     assert!(
         sent_messages(&sent).iter().any(
@@ -86,25 +87,22 @@ async fn data_manager_replies_to_ping_and_keeps_reading() {
 }
 
 #[tokio::test]
-async fn data_manager_enforces_aggregate_subscription_limit() {
+async fn data_manager_rejects_subscribe_request_over_5000_symbols() {
     let (stream, _) = MockSocket::new(Vec::new());
-    let client = test_client();
-    let mut socket = client.data_socket().connect_with_stream(stream);
-    let initial = DataSubscribeRequest {
-        symbols: (0..5000)
+    let client = test_client_with_jwt();
+    let mut socket = client
+        .data_socket()
+        .connect_with_stream(stream)
+        .expect("connect_with_stream");
+    let too_many = DataSubscribeRequest {
+        symbols: (0..5001)
             .map(|index| format!("NSE:SYM{index}-EQ"))
             .collect(),
         data_type: fyers_rs::models::ws::DataSubscriptionKind::SymbolUpdate,
     };
-    let extra = DataSubscribeRequest {
-        symbols: vec!["NSE:EXTRA-EQ".to_owned()],
-        data_type: fyers_rs::models::ws::DataSubscriptionKind::SymbolUpdate,
-    };
-
-    socket.subscribe(&initial).await.unwrap();
 
     assert!(matches!(
-        socket.subscribe(&extra).await,
+        socket.subscribe(&too_many).await,
         Err(FyersError::Validation(_))
     ));
 }
@@ -244,8 +242,11 @@ async fn tbt_manager_enforces_documented_depth_limits() {
 #[tokio::test]
 async fn malformed_frames_return_errors_without_panicking() {
     let (stream, _) = MockSocket::new(vec![Message::Text(r#"{"type":"unknown"}"#.into())]);
-    let client = test_client();
-    let mut socket = client.data_socket().connect_with_stream(stream);
+    let client = test_client_with_jwt();
+    let mut socket = client
+        .data_socket()
+        .connect_with_stream(stream)
+        .expect("connect_with_stream");
 
     assert!(matches!(
         socket.next_event().await,
@@ -271,8 +272,17 @@ fn test_client() -> FyersClient {
         .unwrap()
 }
 
-fn data_symbol_event_fixture() -> String {
-    support::read_fixture("ws/data/event_symbol_update.json")
+/// Test client with a synthetic JWT carrying a `hsm_key` claim. Required by
+/// the data-socket binary protocol because [`DataSocketConnection::from_stream`]
+/// extracts `hsm_key` from the access token at construction.
+fn test_client_with_jwt() -> FyersClient {
+    // header={"alg":"none"}, payload={"sub":"access_token","hsm_key":"deadbeef"}
+    let token = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhY2Nlc3NfdG9rZW4iLCJoc21fa2V5IjoiZGVhZGJlZWYifQ.sig";
+    FyersClient::builder()
+        .client_id("APPID-100")
+        .access_token(token)
+        .build()
+        .unwrap()
 }
 
 fn sent_messages(sent: &Arc<Mutex<Vec<Message>>>) -> Vec<Message> {

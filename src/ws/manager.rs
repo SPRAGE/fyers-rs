@@ -180,6 +180,34 @@ where
         Ok(None)
     }
 
+    /// Read the next non-control frame, transparently handling ping/pong/close.
+    ///
+    /// Use this when the caller wants the raw [`Message`] (for example to
+    /// drive a stateful binary parser that the static [`SocketFrameParser`] hook
+    /// cannot express).
+    pub async fn next_raw_frame(&mut self) -> Result<Option<Message>> {
+        while let Some(message) = self.stream.next().await {
+            let message = message?;
+            match message {
+                Message::Ping(payload) => {
+                    self.stream.send(Message::Pong(payload)).await?;
+                }
+                Message::Pong(_) => {}
+                Message::Close(frame) => {
+                    self.closed = true;
+                    if frame.is_some() {
+                        self.stream.send(Message::Close(frame)).await?;
+                    }
+                    return Ok(None);
+                }
+                other => return Ok(Some(other)),
+            }
+        }
+
+        self.closed = true;
+        Ok(None)
+    }
+
     /// Close the socket.
     pub async fn close(&mut self) -> Result<()> {
         if !self.closed {
@@ -202,6 +230,10 @@ where
 
 /// Connect a live Fyers WebSocket with the documented `appid:access_token`
 /// authorization header.
+///
+/// The data socket at `wss://socket.fyers.in/hsm/v1-5/prod` is an exception:
+/// it accepts the WS upgrade unconditionally and expects in-band binary auth.
+/// Use [`connect_live_socket_no_auth_header`] for that endpoint.
 pub async fn connect_live_socket(config: &FyersConfig, kind: SocketKind) -> Result<LiveWebSocket> {
     let url = match kind {
         SocketKind::Data => config.data_socket_url(),
@@ -218,6 +250,24 @@ pub async fn connect_live_socket(config: &FyersConfig, kind: SocketKind) -> Resu
         })?,
     );
 
+    let (stream, _) = connect_async(request).await?;
+    Ok(stream)
+}
+
+/// Connect a live Fyers WebSocket with no Authorization header.
+///
+/// Used by the data socket, which performs auth in-band via a binary frame
+/// after the WS handshake completes (see [`crate::ws::data_protocol`]).
+pub async fn connect_live_socket_no_auth_header(
+    config: &FyersConfig,
+    kind: SocketKind,
+) -> Result<LiveWebSocket> {
+    let url = match kind {
+        SocketKind::Data => config.data_socket_url(),
+        SocketKind::Order => config.order_socket_url(),
+        SocketKind::Tbt => config.tbt_socket_url(),
+    };
+    let request = url.as_str().into_client_request()?;
     let (stream, _) = connect_async(request).await?;
     Ok(stream)
 }
