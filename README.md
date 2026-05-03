@@ -2,16 +2,48 @@
 
 Idiomatic async Rust client for the documented Fyers broker APIs.
 
-> **Status:** pre-release, fixture-backed implementation. REST coverage and WebSocket protocol/manager coverage are implemented against a local Fyers docs inventory.
+> **Status:** pre-release. The market-data WebSocket and several REST endpoints have been live-verified end-to-end against the real Fyers V3 API. Other paths — most importantly **order placement, modification, and cancellation** — match the official Python SDK byte-for-byte but **have never been live-fired**. See the verification matrix below.
 
 > **Safety warning:** this project is entirely AI-generated at this stage. It has not been independently audited or battle-tested. Review, test, and verify behavior yourself before using it with real Fyers credentials, market data, or orders. Live tests and examples are opt-in; no example should place an order unless you explicitly change/run it to do so.
+
+## ⚠️ Order placement has not been tested live
+
+`client.orders().place_sync(...)`, `place_async`, `modify_sync`, `cancel_sync`, the multi/multileg variants, GTT and smart-order endpoints **have never sent a real order through this crate**. The endpoint URLs and request payload shapes match the official Fyers Python SDK (`fyers-apiv3`), and the Fyers server returns expected validation errors when probed without algo-trading entitlement — but a live order on a real account has not yet been placed-and-cancelled to confirm round-trip behaviour.
+
+If you intend to use this crate to place real orders, you **must** verify each path yourself first. Suggested approach:
+1. Place one tiny throwaway limit order (e.g. 1 share at an obviously-non-marketable price) on an algo-trading-enabled account.
+2. Cancel it immediately.
+3. Compare the request body the crate sent against [the documented Fyers V3 API spec](https://myapi-docs.fyers.in/v3/) and the [`fyers-apiv3` Python SDK source](https://pypi.org/project/fyers-apiv3/).
+4. Repeat per order type (sync, async, multi, multileg, GTT, smart-order) before relying on each.
+
+Treat every order-mutation call as **irreversible broker interaction**.
+
+## Verification status
+
+| Surface | Status | Notes |
+|---|---|---|
+| Auth flow (login URL → auth code → access/refresh token → refresh) | ✅ Live-verified | |
+| Profile / funds / holdings (REST) | ✅ Live-verified | |
+| Data WebSocket — connect, auth handshake, full mode, channel resume, subscribe, snapshot decode, ack flow control | ✅ Live-verified end-to-end | Real `NSE:SBIN-EQ` snapshot decoded with correct OHLC/bid/ask/circuit bands. |
+| Data WebSocket — lite mode | ✅ Live-verified | Single-field LTP frame. |
+| Data WebSocket — update frames (`data_type=0x55`) during market hours | ⏳ Pending market open | Snapshot path is byte-validated; updates use the same field layout per Python SDK. |
+| Data WebSocket — index updates (`if\|...`) | ⚠️ Synthetic test only | Field schema implemented from `index_val`; never seen a live index frame. |
+| Data WebSocket — depth updates (`dp\|...`) | ⚠️ Synthetic test only | Field schema implemented from `depthvalue`; never seen a live depth frame. |
+| Order WebSocket — connect, subscribe, ping/pong | ✅ Live-verified | Subscribe ack received. No live order events tested. |
+| TBT/depth WebSocket | ⚠️ Implementation correct, untested live | Subscribe wire format and protobuf decoder match Python SDK. Account lacks TBT entitlement to validate. Dynamic URL fetching from `/indus/home/tbtws` is not yet implemented. |
+| **REST order placement / modification / cancellation** | ❌ **Never live-fired** | URLs match Python SDK; payload shapes have not been round-tripped against a real account. |
+| GTT, smart orders, multi-leg orders | ❌ Never live-fired | Same as above. |
+| Portfolio operations (exit/convert positions, margin calculators) | ❌ Never live-fired | |
+| Market data REST (history, quotes, depth, option chain, symbol master) | ⚠️ Compiled, fixture-tested | Not live-fired in this session. |
+| Postback payloads | ⚠️ Models only | No live webhook capture. |
+| WebSocket auto-reconnect | ❌ Not implemented | `DataSocketConfig::reconnect` is accepted but no internal loop consumes it. See `DataSocketConnection` rustdoc for the manual reconnect pattern. |
 
 ## Coverage
 
 - Auth/session: login URL, auth-code validation, refresh token, logout.
 - User and account: profile, funds, holdings.
 - Transactions/reports: trades, orders, positions, order history, trade history.
-- Orders: sync/async single, multi, multi-leg, modify, cancel, GTT, smart orders.
+- Orders: sync/async single, multi, multi-leg, modify, cancel, GTT, smart orders. **(See verification status above — none live-fired.)**
 - Portfolio operations: exit/convert positions and margin calculators.
 - Market data REST: market status, history, quotes, depth, option chain, symbol master.
 - EDIS, price alerts, and incoming postback payload models.
@@ -110,7 +142,7 @@ println!("{orders:?}");
 # }
 ```
 
-Order-placement examples in this repository construct request bodies but do not place live orders by default. Treat any live order call as irreversible broker interaction.
+Order-placement examples in this repository construct request bodies but do not place live orders by default. **No order-placement path in this crate has been live-fired against a real Fyers account.** Treat any live order call as irreversible broker interaction; verify the wire format yourself before relying on it (see [the order-placement warning above](#%EF%B8%8F-order-placement-has-not-been-tested-live)).
 
 ## WebSocket example
 
