@@ -414,6 +414,7 @@ dependencies = [
 name = "fyers-rs"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "bytes",
  "futures-util",
  "pretty_assertions",
