@@ -1,0 +1,7 @@
+{
+  "type": 2,
+  "data": {
+    "resumeChannels": ["1"],
+    "pauseChannels": ["2"]
+  }
+}

@@ -3,6 +3,10 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     flake-utils.url = "github:numtide/flake-utils";
     claude-code = {
       # SECURITY: Pin to a specific rev for production use
@@ -16,18 +20,48 @@
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, claude-code, dev-template, ... }:
+  outputs = { self, nixpkgs, fenix, flake-utils, claude-code, dev-template, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs {
+          inherit system;
+          config.allowUnfreePredicate = pkg:
+            builtins.elem (nixpkgs.lib.getName pkg) [
+              "github-copilot-cli"
+            ];
+        };
+        rustToolchain = with fenix.packages.${system}; combine [
+          stable.rustc
+          stable.cargo
+          stable.clippy
+          stable.rustfmt
+          stable.rust-src
+        ];
       in
       {
         devShells.default = pkgs.mkShell {
           packages = [
             claude-code.packages.${system}.default
+            pkgs.github-copilot-cli
             pkgs.nodejs
-            # TODO: add project dependencies
+            rustToolchain
+            pkgs.rust-analyzer
+            pkgs.cargo-audit
+            pkgs.cargo-deny
+            pkgs.cargo-edit
+            pkgs.cargo-nextest
+            pkgs.cargo-watch
+            pkgs.just
+            pkgs.git
+            pkgs.pkg-config
+            pkgs.openssl
+            pkgs.cacert
+            pkgs.curl
+            pkgs.jq
           ];
+
+          RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library";
+          PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
 
           shellHook = ''
             # Auto-sync skills from dev-template
@@ -54,7 +88,17 @@
               chmod +x "$PWD/.claude/hooks"/*.sh 2>/dev/null || true
             fi
 
-            echo "fyers-rs dev shell ready"
+            echo "🦀 fyers-rs Rust dev shell ready"
+            echo "Rust: $(rustc --version)"
+            echo "Cargo: $(cargo --version)"
+            echo ""
+            echo "Useful commands:"
+            echo "  cargo check       # type-check the library"
+            echo "  cargo test        # run tests"
+            echo "  cargo clippy      # lint"
+            echo "  cargo fmt         # format"
+            echo "  cargo nextest run # run tests with nextest"
+            echo "  copilot --help    # GitHub Copilot CLI"
           '';
         };
       }

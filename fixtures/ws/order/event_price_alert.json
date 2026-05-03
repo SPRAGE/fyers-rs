@@ -1,0 +1,8 @@
+{
+  "s": "ok",
+  "pricealerts": {
+    "id": "alert-1",
+    "symbol": "NSE:SBIN-EQ",
+    "status": "triggered"
+  }
+}

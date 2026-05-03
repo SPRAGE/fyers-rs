@@ -1,0 +1,10 @@
+{
+  "symbol": "NSE:SBIN-EQ",
+  "agent": "fyers-api",
+  "alert-type": 1,
+  "comparisonType": "LTP",
+  "condition": "GTE",
+  "value": 705.0,
+  "name": "SBIN breakout updated",
+  "alertId": "alert-001"
+}

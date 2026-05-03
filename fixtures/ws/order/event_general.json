@@ -1,0 +1,6 @@
+{
+  "s": "ok",
+  "message": "login successful",
+  "type": "login",
+  "user": "demo"
+}

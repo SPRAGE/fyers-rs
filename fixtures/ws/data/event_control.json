@@ -1,0 +1,32 @@
+[
+  {
+    "type": "cn",
+    "code": 200,
+    "message": "Authentication done",
+    "s": "ok"
+  },
+  {
+    "type": "sub",
+    "code": 200,
+    "message": "Subscribed",
+    "s": "ok"
+  },
+  {
+    "type": "unsub",
+    "code": 200,
+    "message": "Unsubscribed",
+    "s": "ok"
+  },
+  {
+    "type": "error",
+    "code": -1,
+    "message": "Invalid symbol",
+    "s": "error"
+  },
+  {
+    "type": "lit",
+    "code": 200,
+    "message": "Lite mode enabled",
+    "s": "ok"
+  }
+]

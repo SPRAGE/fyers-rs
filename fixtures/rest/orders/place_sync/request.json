@@ -1,0 +1,16 @@
+{
+  "symbol": "NSE:IDEA-EQ",
+  "qty": 1,
+  "type": 1,
+  "side": 1,
+  "productType": "CNC",
+  "limitPrice": 100.0,
+  "stopPrice": 0.0,
+  "validity": "DAY",
+  "disclosedQty": 1,
+  "offlineOrder": false,
+  "stopLoss": 0.0,
+  "takeProfit": 0.0,
+  "orderTag": "1:Ordertag",
+  "isSliceOrder": false
+}

@@ -1,0 +1,14 @@
+{
+  "symbol": "NSE:SBIN-EQ",
+  "side": 1,
+  "amount": 5000.0,
+  "productType": "CNC",
+  "freq": 3,
+  "sip_day": 15,
+  "imd_start": false,
+  "endTime": 1769846400,
+  "hpr": 900.0,
+  "lpr": 600.0,
+  "step_up_freq": 3,
+  "step_up_amount": 500.0
+}

@@ -1,0 +1,27 @@
+{
+  "s": "ok",
+  "code": 200,
+  "message": "Multi order request queued",
+  "data": [
+    {
+      "statusCode": 200,
+      "body": {
+        "s": "ok",
+        "code": 1101,
+        "message": "Order queued successfully.",
+        "id_fyers": "c6697c04-d9ab-4a7c-a6f4-b0cc4ca698f6"
+      },
+      "statusDescription": "HTTP OK"
+    },
+    {
+      "statusCode": 200,
+      "body": {
+        "s": "ok",
+        "code": 1101,
+        "message": "Order queued successfully.",
+        "id_fyers": "d7798d15-e0bc-5b8d-b7f5-c1dd5db709f7"
+      },
+      "statusDescription": "HTTP OK"
+    }
+  ]
+}

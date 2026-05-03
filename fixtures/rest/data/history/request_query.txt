@@ -1,0 +1,1 @@
+symbol=NSE%3ASBIN-EQ&resolution=D&date_format=1&range_from=2026-04-01&range_to=2026-04-29&cont_flag=1

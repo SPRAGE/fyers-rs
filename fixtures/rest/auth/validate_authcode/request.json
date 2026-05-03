@@ -1,0 +1,5 @@
+{
+  "grant_type": "authorization_code",
+  "appIdHash": "fake_sha256_app_id_plus_secret_hash",
+  "code": "fake_auth_code"
+}

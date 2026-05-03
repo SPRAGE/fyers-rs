@@ -1,0 +1,13 @@
+{
+  "s": "ok",
+  "code": 200,
+  "message": "Market status fetched successfully",
+  "marketStatus": [
+    {
+      "exchange": 10,
+      "market_type": "NORMAL",
+      "segment": 10,
+      "status": "OPEN"
+    }
+  ]
+}

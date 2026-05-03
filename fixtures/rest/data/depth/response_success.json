@@ -1,0 +1,43 @@
+{
+  "s": "ok",
+  "d": {
+    "NSE:SBIN-EQ": {
+      "totalbuyqty": 2396063,
+      "totalsellqty": 4990001,
+      "ask": [
+        {
+          "price": 427.4,
+          "volume": 2193,
+          "ord": 4
+        }
+      ],
+      "bids": [
+        {
+          "price": 427.25,
+          "volume": 4738,
+          "ord": 5
+        }
+      ],
+      "o": 430.5,
+      "h": 433.65,
+      "l": 423.6,
+      "c": 425.2,
+      "chp": 0.48,
+      "tick_Size": 0.05,
+      "ch": 2.05,
+      "ltq": 20,
+      "ltt": 1622184920,
+      "ltp": 427.25,
+      "v": 39163870,
+      "atp": 428.07,
+      "lower_ckt": 382.7,
+      "upper_ckt": 467.7,
+      "expiry": "",
+      "oi": 0,
+      "oiflag": false,
+      "pdoi": 0,
+      "oipercent": 0.0
+    }
+  },
+  "message": ""
+}

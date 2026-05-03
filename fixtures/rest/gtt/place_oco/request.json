@@ -1,0 +1,17 @@
+{
+  "side": 1,
+  "symbol": "NSE:SBIN-EQ",
+  "productType": "CNC",
+  "orderInfo": {
+    "leg1": {
+      "price": 10000.0,
+      "triggerPrice": 10000.0,
+      "qty": 3
+    },
+    "leg2": {
+      "price": 990.0,
+      "triggerPrice": 990.0,
+      "qty": 3
+    }
+  }
+}

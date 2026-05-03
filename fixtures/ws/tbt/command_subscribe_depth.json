@@ -1,0 +1,9 @@
+{
+  "type": 1,
+  "data": {
+    "subs": 1,
+    "symbols": ["NSE:IOC25FEBFUT", "NSE:NIFTY25FEBFUT"],
+    "mode": "depth",
+    "channel": "1"
+  }
+}

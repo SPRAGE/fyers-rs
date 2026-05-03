@@ -1,0 +1,6 @@
+{
+  "s": "ok",
+  "code": 200,
+  "message": "",
+  "access_token": "fake_refreshed_access_token.jwt"
+}

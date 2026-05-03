@@ -1,0 +1,22 @@
+{
+  "data": [
+    {
+      "symbol": "NSE:BANKNIFTY23NOV44400CE",
+      "qty": 50,
+      "side": -1,
+      "type": 2,
+      "productType": "INTRADAY",
+      "limitPrice": 0.0,
+      "stopLoss": 0.0
+    },
+    {
+      "symbol": "NSE:BANKNIFTY23NOVFUT",
+      "qty": 50,
+      "side": -1,
+      "type": 2,
+      "productType": "INTRADAY",
+      "limitPrice": 0.0,
+      "stopLoss": 0.0
+    }
+  ]
+}

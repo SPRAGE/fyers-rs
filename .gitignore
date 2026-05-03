@@ -3,6 +3,14 @@ result
 result-*
 .direnv/
 
+# Local development / personal planning
+.envrc
+.mcp.json
+CLAUDE.md
+.claude/
+docs/
+plan.md
+
 # Environment & secrets
 .env
 .env.local
@@ -31,6 +39,7 @@ logs/
 
 # Cache
 .cache/
+target/
 
 # Claude Code runtime
 .claude-flow/

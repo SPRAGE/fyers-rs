@@ -1,0 +1,1 @@
+symbols=NSE%3ASBIN-EQ%2CNSE%3AITC-EQ

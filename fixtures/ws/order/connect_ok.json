@@ -1,0 +1,7 @@
+{
+  "socket_url": "wss://socket.fyers.in/trade/v3",
+  "authorization_format": "appid:access_token",
+  "reconnect": true,
+  "reconnect_retry": 50,
+  "ping_interval_seconds": 10
+}

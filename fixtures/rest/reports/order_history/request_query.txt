@@ -1,0 +1,1 @@
+exchange_type=0&segment_type=0&status=0&symbol=INFIBEAM&from_date=2025-04-01&to_date=2025-12-22&page_no=1&page_size=100

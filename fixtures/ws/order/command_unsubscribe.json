@@ -1,0 +1,5 @@
+{
+  "T": "SUB_ORD",
+  "SLIST": ["orders", "trades", "positions", "edis", "pricealerts", "login"],
+  "SUB_T": -1
+}

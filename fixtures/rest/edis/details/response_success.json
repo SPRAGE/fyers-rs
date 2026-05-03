@@ -1,0 +1,25 @@
+{
+  "s": "ok",
+  "code": 200,
+  "message": "",
+  "data": [
+    {
+      "clientId": "DXXXX4",
+      "isin": "INE313D01013",
+      "qty": 1.0,
+      "qtyUtlize": 0.0,
+      "entryDate": "07/06/2021 13:58:56",
+      "startDate": "07/06/2021",
+      "endDate": "07/06/2021",
+      "noOfDays": 1,
+      "source": "W",
+      "status": "SUCCESS",
+      "reason": "eDIS Transaction done successfully",
+      "internalTxnId": "915485",
+      "dpTxnId": "0706202171316317",
+      "errCode": "NA",
+      "errorCount": "0",
+      "transactionId": "915484108176"
+    }
+  ]
+}

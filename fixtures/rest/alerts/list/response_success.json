@@ -1,0 +1,26 @@
+{
+  "s": "ok",
+  "code": 200,
+  "message": "Price alerts fetched successfully",
+  "data": {
+    "alert-001": {
+      "fyToken": "10100000003045",
+      "symbol": "NSE:SBIN-EQ",
+      "alert": {
+        "comparisonType": "LTP",
+        "condition": "GTE",
+        "name": "SBIN breakout",
+        "type": "V",
+        "value": 700.0,
+        "triggeredAt": "",
+        "createdAt": "2026-04-29T08:00:00+05:30",
+        "modifiedAt": "",
+        "notes": "",
+        "triggeredEpoch": 0,
+        "createdEpoch": 1777449600,
+        "modifiedEpoch": 0,
+        "status": 1
+      }
+    }
+  }
+}

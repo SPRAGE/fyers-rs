@@ -1,0 +1,15 @@
+{
+  "id": "26021800001427",
+  "orderInfo": {
+    "leg1": {
+      "price": 1750.0,
+      "triggerPrice": 1749.0,
+      "qty": 5
+    },
+    "leg2": {
+      "price": 1700.0,
+      "triggerPrice": 1701.0,
+      "qty": 5
+    }
+  }
+}

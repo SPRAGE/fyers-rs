@@ -1,0 +1,1 @@
+client_id=SPXXXXE7-100&redirect_uri=https%3A%2F%2Ftrade.fyers.in%2Fapi-login%2Fredirect-uri%2Findex.html&response_type=code&state=sample_state

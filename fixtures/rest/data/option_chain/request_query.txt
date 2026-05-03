@@ -1,0 +1,1 @@
+symbol=NSE%3ASBIN-EQ&strikecount=2&greeks=1

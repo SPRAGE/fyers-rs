@@ -1,0 +1,10 @@
+{
+  "symbol": "NSE:SBIN-EQ",
+  "side": -1,
+  "qty": 1,
+  "productType": "CNC",
+  "orderType": 2,
+  "stopPrice": 740.0,
+  "jump_diff": 5.0,
+  "mpp": 1.0
+}

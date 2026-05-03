@@ -1,0 +1,27 @@
+{
+  "s": "ok",
+  "code": 200,
+  "message": "",
+  "data": [
+    {
+      "statusCode": 200,
+      "body": {
+        "s": "ok",
+        "code": 1103,
+        "message": "Successfully cancelled order",
+        "id": "808058117761"
+      },
+      "statusDescription": "HTTP OK"
+    },
+    {
+      "statusCode": 200,
+      "body": {
+        "s": "ok",
+        "code": 1103,
+        "message": "Successfully cancelled order",
+        "id": "808058117762"
+      },
+      "statusDescription": "HTTP OK"
+    }
+  ]
+}

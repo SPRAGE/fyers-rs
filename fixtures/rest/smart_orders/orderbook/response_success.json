@@ -1,0 +1,21 @@
+{
+  "code": 200,
+  "s": "ok",
+  "orderBook": [
+    {
+      "flowId": "9d12ded8-f046-440f-89f5-e750a37e6048",
+      "flowtype": 4,
+      "symbol": "NSE:SBIN-EQ",
+      "side": 1,
+      "qty": 5,
+      "filledQty": 0,
+      "status": 6,
+      "productType": "CNC",
+      "limitPrice": 760.0,
+      "createdTime": 1738383000,
+      "updatedTime": 1738383000
+    }
+  ],
+  "count": 1,
+  "filterCount": 1
+}

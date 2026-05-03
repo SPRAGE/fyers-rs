@@ -1,0 +1,24 @@
+{
+  "s": "ok",
+  "data": [
+    {
+      "symbol": "MCX:GOLDPETAL25JUNFUT",
+      "clientId": "XXXXXX",
+      "description": "GOLDPETAL25JUNFUT",
+      "orderDateTime": "13-Jun-2025 20:05:38",
+      "orderNumber": "25061300346219",
+      "tradeNumber": "100388805",
+      "exchangeOrderNo": "516410327756710",
+      "side": 1,
+      "exchange": 11,
+      "segment": 20,
+      "product_type": "Overnight",
+      "traded_qty": 1,
+      "trade_price": 10007.0,
+      "trade_value": 10007.0,
+      "is_symbol_active": false
+    }
+  ],
+  "message": "Trade Book data fetched successfully",
+  "code": 200
+}

@@ -1,0 +1,30 @@
+{
+  "orderTag": "tag1",
+  "productType": "MARGIN",
+  "offlineOrder": false,
+  "orderType": "3L",
+  "validity": "IOC",
+  "legs": {
+    "leg1": {
+      "symbol": "NSE:SBIN24JUNFUT",
+      "qty": 750,
+      "side": 1,
+      "type": 1,
+      "limitPrice": 800.0
+    },
+    "leg2": {
+      "symbol": "NSE:SBIN24JULFUT",
+      "qty": 750,
+      "side": 1,
+      "type": 1,
+      "limitPrice": 800.0
+    },
+    "leg3": {
+      "symbol": "NSE:SBIN24JUN900CE",
+      "qty": 750,
+      "side": 1,
+      "type": 1,
+      "limitPrice": 3.0
+    }
+  }
+}

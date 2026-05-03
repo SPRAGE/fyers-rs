@@ -1,0 +1,7 @@
+{
+  "socket_url": "wss://socket.fyers.in/hsm/v1-5/prod",
+  "authorization_format": "appid:access_token",
+  "lite_mode": false,
+  "reconnect": true,
+  "reconnect_retry": 50
+}

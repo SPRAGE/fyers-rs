@@ -1,0 +1,9 @@
+{
+  "s": "ok",
+  "code": 200,
+  "message": "",
+  "data": {
+    "FAILED_CNT": 0,
+    "SUCEESS_CNT": 1
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "symbol": "NSE:SBIN-EQ",
+  "side": 1,
+  "qty": 10,
+  "productType": "CNC",
+  "orderType": 1,
+  "avgqty": 2,
+  "avgdiff": 5.0,
+  "direction": 1,
+  "startTime": 1738383000,
+  "endTime": 1738396200,
+  "limitPrice": 750.0,
+  "initQty": 2,
+  "hpr": 800.0,
+  "lpr": 700.0,
+  "mpp": 1.0
+}

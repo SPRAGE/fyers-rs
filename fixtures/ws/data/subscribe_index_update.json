@@ -1,0 +1,4 @@
+{
+  "symbols": ["NSE:NIFTY50-INDEX", "NSE:NIFTYBANK-INDEX"],
+  "data_type": "SymbolUpdate"
+}

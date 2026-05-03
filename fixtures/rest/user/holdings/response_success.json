@@ -1,0 +1,50 @@
+{
+  "s": "ok",
+  "code": 200,
+  "message": "",
+  "holdings": [
+    {
+      "holdingType": "HLD",
+      "quantity": 1,
+      "costPrice": 1.55,
+      "marketVal": 3.75,
+      "remainingQuantity": 1,
+      "pl": 2.2,
+      "ltp": 3.75,
+      "id": 1,
+      "fyToken": 101000000011460,
+      "exchange": 10,
+      "symbol": "NSE:JPASSOCIAT-EQ",
+      "segment": 10,
+      "isin": "INE669E01016",
+      "qty_t1": 1,
+      "remainingPledgeQuantity": -1,
+      "collateralQuantity": 0
+    },
+    {
+      "holdingType": "HLD",
+      "quantity": 1,
+      "costPrice": 192.6,
+      "marketVal": 149.70,
+      "remainingQuantity": 1,
+      "pl": -42.9,
+      "ltp": 149.7,
+      "id": 2,
+      "fyToken": 10100000003812,
+      "exchange": 10,
+      "symbol": "NSE:ZEEL-EQ",
+      "segment": 10,
+      "isin": "INE669E01016",
+      "qty_t1": 1,
+      "remainingPledgeQuantity": -1,
+      "collateralQuantity": 0
+    }
+  ],
+  "overall": {
+    "count_total": 2,
+    "total_investment": 194.15,
+    "total_current_value": 153.45,
+    "total_pl": -40.7,
+    "pnl_perc": -10.48
+  }
+}

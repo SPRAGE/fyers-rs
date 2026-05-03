@@ -1,0 +1,32 @@
+{
+  "s": "ok",
+  "code": 200,
+  "message": "Quotes fetched successfully",
+  "d": [
+    {
+      "n": "NSE:SBIN-EQ",
+      "s": "ok",
+      "v": {
+        "ch": 1.2,
+        "chp": 0.18,
+        "lp": 675.4,
+        "spread": 0.05,
+        "ask": 675.45,
+        "bid": 675.4,
+        "open_price": 650.0,
+        "high_price": 680.0,
+        "low_price": 645.0,
+        "prev_close_price": 674.2,
+        "atp": 666.5,
+        "volume": 1234567,
+        "short_name": "SBIN",
+        "exchange": "NSE",
+        "description": "STATE BANK OF INDIA",
+        "original_name": "NSE:SBIN-EQ",
+        "symbol": "NSE:SBIN-EQ",
+        "fyToken": "10100000003045",
+        "tt": "1775001600"
+      }
+    }
+  ]
+}

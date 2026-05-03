@@ -1,0 +1,30 @@
+{
+  "s": "ok",
+  "data": [
+    {
+      "symbol": "MCX:GOLDPETAL26FEBFUT",
+      "clientId": "XXXXXX",
+      "id_fyers": "26020100012037",
+      "exchOrdId": "603210324081559",
+      "exchange": 11,
+      "segment": 20,
+      "instrument": 30,
+      "description": "GOLDPETAL26FEBFUT",
+      "trade_date_time": 1769920009000,
+      "trade_date ": "01-02-2026 09:56:49",
+      "transaction_type": "SELL",
+      "product_type": "Overnight",
+      "status": "Executed",
+      "ordertype": "Limit",
+      "qty": 1,
+      "tradedqty": 1,
+      "traded_price": 15013.0,
+      "limit_price": 15013.0,
+      "ord_source": "Mobile",
+      "rejection_reason": "",
+      "is_symbol_active": true
+    }
+  ],
+  "message": "Order Book data fetched successfully",
+  "code": 200
+}

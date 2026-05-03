@@ -1,0 +1,8 @@
+{
+  "symbol": "NSE:SBIN-EQ-INTRADAY",
+  "positionSide": 1,
+  "convertQty": 10,
+  "convertFrom": "INTRADAY",
+  "convertTo": "CNC",
+  "overnight": 0
+}

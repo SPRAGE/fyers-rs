@@ -1,0 +1,22 @@
+[
+  {
+    "s": "ok",
+    "code": 1605,
+    "message": "Successfully subscribed"
+  },
+  {
+    "s": "ok",
+    "code": 1606,
+    "message": "Successfully unsubscribed"
+  },
+  {
+    "s": "error",
+    "code": -1,
+    "message": "error: invalid action"
+  },
+  {
+    "s": "error",
+    "code": 403,
+    "message": "connection closed"
+  }
+]

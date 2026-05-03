@@ -1,0 +1,12 @@
+{
+  "type": "if",
+  "symbol": "NSE:NIFTY50-INDEX",
+  "ltp": "26188.1",
+  "prev_close_price": "26216.05",
+  "high_price": "26277.35",
+  "low_price": "26166.95",
+  "open_price": "26248.25",
+  "ch": "-27.95",
+  "chp": "-0.11",
+  "exch_feed_time": "1727428424"
+}

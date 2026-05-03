@@ -1,0 +1,7 @@
+{
+  "socket_url": "wss://rtsocket-api.fyers.in/versova",
+  "authorization_format": "appid:access_token",
+  "max_connections_per_app_user": 3,
+  "max_symbols_per_depth_connection": 5,
+  "max_channels": 50
+}

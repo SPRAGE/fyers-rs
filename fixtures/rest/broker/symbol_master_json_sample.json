@@ -1,0 +1,11 @@
+{
+  "NSE:SBIN-EQ": {
+    "fyToken": "10100000003045",
+    "symbol": "NSE:SBIN-EQ",
+    "description": "STATE BANK OF INDIA",
+    "exchange": 10,
+    "segment": 10,
+    "lotSize": 1,
+    "tickSize": 0.05
+  }
+}

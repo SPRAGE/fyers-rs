@@ -1,0 +1,6 @@
+{
+  "s": "ok",
+  "code": 200,
+  "message": "",
+  "data": "<form name=\"frmDIS\" method=\"post\" action=\"https://eDIS.cdslindia.com/eDIS/VerifyDIS\"><input type=\"submit\" value=\"Submit\"></form>"
+}

@@ -1,0 +1,26 @@
+{
+  "data": [
+    {
+      "symbol": "NSE:NIFTY23DECFUT",
+      "qty": 50,
+      "side": 1,
+      "type": 2,
+      "productType": "MARGIN",
+      "limitPrice": 0.0,
+      "stopLoss": 0.0,
+      "stopPrice": 0.0,
+      "takeProfit": 0.0
+    },
+    {
+      "symbol": "NSE:SBIN-EQ",
+      "qty": 50,
+      "side": 1,
+      "type": 2,
+      "productType": "MARGIN",
+      "limitPrice": 0.0,
+      "stopLoss": 0.0,
+      "stopPrice": 0.0,
+      "takeProfit": 0.0
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "grant_type": "refresh_token",
+  "appIdHash": "fake_sha256_app_id_plus_secret_hash",
+  "refresh_token": "fake_refresh_token.jwt",
+  "pin": "1234"
+}

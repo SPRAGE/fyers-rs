@@ -1,0 +1,65 @@
+[package]
+name = "fyers-rs"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+authors = ["Shaun Pai <shauna.pai@gmail.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/SPRAGE/fyers-rs"
+documentation = "https://docs.rs/fyers-rs"
+description = "Idiomatic async Rust client for the Fyers API v3 broker APIs."
+categories = ["api-bindings", "asynchronous", "finance"]
+keywords = ["fyers", "trading", "broker", "async", "api"]
+include = [
+    "src/**",
+    "examples/**",
+    "tests/**",
+    "fixtures/**",
+    "README.md",
+    "LICENSE",
+    "Cargo.toml",
+    "!docs/**",
+]
+
+[lib]
+name = "fyers_rs"
+path = "src/lib.rs"
+doc = true
+
+[features]
+default = ["rest", "ws", "auth", "rustls-tls", "tracing"]
+rest = []
+ws = []
+auth = []
+rustls-tls = ["reqwest/rustls-tls", "tokio-tungstenite/rustls-tls-webpki-roots"]
+native-tls = ["reqwest/native-tls", "tokio-tungstenite/native-tls"]
+tracing = []
+live-tests = []
+
+[dependencies]
+bytes = "1.10"
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+prost = "0.14"
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_with = "3"
+sha2 = "0.10"
+thiserror = "2"
+time = { version = "0.3", features = ["formatting", "parsing", "serde"] }
+tokio = { version = "1", features = ["net", "sync", "time"] }
+tokio-tungstenite = { version = "0.27", default-features = false, features = ["connect"] }
+tracing = "0.1"
+url = { version = "2.5", features = ["serde"] }
+
+[dev-dependencies]
+pretty_assertions = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+wiremock = "0.6"
+
+[package.metadata.docs.rs]
+all-features = true
+targets = ["x86_64-unknown-linux-gnu"]
+rustdoc-args = ["--cfg", "docsrs"]
