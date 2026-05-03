@@ -17,14 +17,19 @@ pub struct ProfileResponse {
 }
 
 /// Basic profile details for the authenticated user.
+///
+/// Several optional fields (`image`, `display_name`, `pin_change_date`,
+/// `pwd_change_date`) come back as `null` from the live API for accounts
+/// that haven't customised them. They're modelled as `Option<String>` so
+/// deserialisation succeeds in either case.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProfileData {
     /// Name of the client.
     pub name: String,
     /// URL link to the user's profile picture, if any.
-    pub image: String,
+    pub image: Option<String>,
     /// Display name, if any, provided by the client.
-    pub display_name: String,
+    pub display_name: Option<String>,
     /// Email address of the client.
     pub email_id: String,
     /// PAN of the client. Fyers docs show both `PAN` in samples and `pan` in the table.
@@ -33,13 +38,13 @@ pub struct ProfileData {
     /// Fyers user ID.
     pub fy_id: String,
     /// Date when the PIN was last updated.
-    pub pin_change_date: String,
+    pub pin_change_date: Option<String>,
     /// Registered mobile number.
     pub mobile_number: String,
     /// TOTP status.
     pub totp: bool,
     /// Date when the password was last updated.
-    pub pwd_change_date: String,
+    pub pwd_change_date: Option<String>,
     /// Number of days until the current password expires.
     pub pwd_to_expire: i64,
     /// DDPI status.

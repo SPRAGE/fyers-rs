@@ -189,9 +189,17 @@ fn normalize_order_actions(actions: Vec<String>) -> Result<Vec<String>> {
 
 fn parse_order_message(message: Message) -> Result<Option<OrderSocketEvent>> {
     match message {
-        Message::Text(text) => parse_order_event(text.as_str())
-            .map(Some)
-            .map_err(FyersError::Validation),
+        Message::Text(text) => {
+            let trimmed = text.as_str().trim();
+            // The order socket sends literal "pong" replies to our "ping"
+            // heartbeats; mirror the Python SDK's silent-skip behaviour.
+            if trimmed.eq_ignore_ascii_case("pong") {
+                return Ok(None);
+            }
+            parse_order_event(trimmed)
+                .map(Some)
+                .map_err(FyersError::Validation)
+        }
         Message::Binary(_) => Err(FyersError::Validation(
             "order socket received unexpected binary frame".to_owned(),
         )),

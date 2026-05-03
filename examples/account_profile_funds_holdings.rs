@@ -1,27 +1,28 @@
-#![allow(dead_code)]
-
 use fyers_rs::{FyersClient, FyersError};
 
-async fn run() -> Result<(), FyersError> {
-    let client = env_client()?;
-
-    let profile = client.profile().get().await?;
-    let funds = client.funds().get().await?;
-    let holdings = client.holdings().get().await?;
-
-    println!("{profile:?}");
-    println!("{funds:?}");
-    println!("{holdings:?}");
-    Ok(())
-}
-
-fn env_client() -> Result<FyersClient, FyersError> {
-    FyersClient::builder()
+#[tokio::main]
+async fn main() -> Result<(), FyersError> {
+    let client = FyersClient::builder()
         .client_id(std::env::var("FYERS_CLIENT_ID").expect("FYERS_CLIENT_ID is required"))
         .access_token(std::env::var("FYERS_ACCESS_TOKEN").expect("FYERS_ACCESS_TOKEN is required"))
-        .build()
-}
+        .build()?;
 
-fn main() {
-    println!("Set FYERS_CLIENT_ID and FYERS_ACCESS_TOKEN, then call run() from an async runtime.");
+    println!("--- profile ---");
+    match client.profile().get().await {
+        Ok(profile) => println!("{profile:#?}"),
+        Err(err) => eprintln!("profile: {err}"),
+    }
+
+    println!("\n--- funds ---");
+    match client.funds().get().await {
+        Ok(funds) => println!("{funds:#?}"),
+        Err(err) => eprintln!("funds: {err}"),
+    }
+
+    println!("\n--- holdings ---");
+    match client.holdings().get().await {
+        Ok(holdings) => println!("{holdings:#?}"),
+        Err(err) => eprintln!("holdings: {err}"),
+    }
+    Ok(())
 }

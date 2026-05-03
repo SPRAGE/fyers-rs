@@ -88,6 +88,40 @@ impl<'a> DataSocketService<'a> {
 }
 
 /// Typed market-data WebSocket manager.
+///
+/// # Reconnect (manual)
+///
+/// Auto-reconnect is **not** implemented. [`crate::models::ws::DataSocketConfig`]
+/// accepts `reconnect` and `reconnect_retry` fields and they're stored on the
+/// connection, but no internal loop consumes them — `next_event` returns
+/// `Ok(None)` on disconnect and stays closed.
+///
+/// To recover from a disconnect, drop the connection and build a new one:
+///
+/// ```no_run
+/// # use fyers_rs::FyersClient;
+/// # use fyers_rs::models::ws::{DataSubscribeRequest, DataSubscriptionKind};
+/// # async fn run(client: FyersClient, request: DataSubscribeRequest) -> fyers_rs::Result<()> {
+/// loop {
+///     let mut socket = client.data_socket().connect().await?;
+///     socket.subscribe(&request).await?;
+///     while let Some(event) = socket.next_event().await? {
+///         // handle event
+///         # let _ = event;
+///     }
+///     // disconnected — loop and reconnect from scratch.
+///     // The HSM-token resolver runs again inside subscribe(), so this
+///     // recovers correctly even if topic IDs have rotated.
+///     # break Ok::<(), fyers_rs::FyersError>(());
+/// }
+/// # }
+/// ```
+///
+/// Subscribe state from the previous session is held in
+/// [`Self::resubscribe_frames`] for inspection, but it's the user-facing
+/// JSON of the original [`DataSubscribeRequest`] values, not the binary
+/// frames sent on the wire — the binary frames carry freshly resolved HSM
+/// tokens that must be re-fetched.
 #[derive(Debug)]
 pub struct DataSocketConnection<S = LiveWebSocket> {
     socket: ManagedSocket<S, DataSocketEvent>,

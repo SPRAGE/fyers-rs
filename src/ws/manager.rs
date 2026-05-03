@@ -24,6 +24,14 @@ pub type SocketEventResult<E> = Result<Option<E>>;
 pub type SocketFrameParser<E> = fn(Message) -> SocketEventResult<E>;
 
 /// Reconnect policy derived from documented SDK socket config.
+///
+/// **Status:** the policy values are accepted by [`crate::models::ws::DataSocketConfig`]
+/// and stored on each connection, but the data, order, and TBT sockets do
+/// **not** currently auto-reconnect. The fields are preserved so callers can
+/// read the configured intent, and so the API stays stable for a future
+/// implementation. To recover from a disconnect today, build a new connection
+/// and re-issue subscribe calls — see [`crate::ws::DataSocketConnection`] for
+/// the manual reconnect pattern.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ReconnectPolicy {
     enabled: bool,
@@ -116,7 +124,14 @@ where
         self.closed
     }
 
-    /// Number of replayable frames recorded for resubscribe/replay after reconnect.
+    /// Number of replayable frames recorded by [`Self::send_replayable_text`].
+    ///
+    /// **Status:** the underlying buffer is populated for forward compatibility
+    /// but is not currently replayed by any reconnect logic. The data socket
+    /// in particular cannot replay raw subscribe frames because they embed a
+    /// freshly resolved HSM token; reconnect for that socket must re-run
+    /// [`crate::ws::DataSocketConnection::handshake`] and re-issue subscribes
+    /// so the symbol-token resolver runs again.
     pub fn replay_frame_count(&self) -> usize {
         self.replay_frames.len()
     }

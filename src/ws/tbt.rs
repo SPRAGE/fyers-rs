@@ -1,4 +1,22 @@
 //! Tick-by-tick/depth WebSocket service.
+//!
+//! # Status notes
+//!
+//! - **Entitlement required.** Tick-by-Tick depth is a premium Fyers add-on.
+//!   Apps without TBT entitlement get HTTP 403 from
+//!   `https://api-t1.fyers.in/indus/home/tbtws` (the dynamic URL endpoint
+//!   the Python SDK calls before connecting), and although the WS upgrade
+//!   on the fallback URL `wss://rtsocket-api.fyers.in/versova` succeeds,
+//!   the server emits no depth frames after subscribe.
+//! - **Wire format is correctly implemented** against the official Python
+//!   SDK: subscribe is a JSON command (`{"type":1,"data":{...}}`), and
+//!   incoming frames are protobuf-encoded `SocketMessage` decoded via
+//!   `prost`. The fictional-protocol problem that affected the data socket
+//!   does not apply here.
+//! - **Dynamic URL fetching is not yet implemented.** The Python SDK
+//!   queries `/indus/home/tbtws` and uses the returned `data.socket_url`
+//!   instead of the static fallback. For entitled accounts the dynamic URL
+//!   may differ; this crate currently always uses the fallback.
 
 use futures_util::{Sink, Stream};
 use tokio_tungstenite::tungstenite::Message;

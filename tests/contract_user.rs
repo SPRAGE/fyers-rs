@@ -12,7 +12,7 @@ fn profile_success_fixture_matches_model() {
     assert_eq!(response.code, 200);
     assert_eq!(response.message, "");
     assert_eq!(response.data.name, "XASHXX G H");
-    assert_eq!(response.data.display_name, "Y2K");
+    assert_eq!(response.data.display_name.as_deref(), Some("Y2K"));
     assert_eq!(response.data.email_id, "txxxxxxxxxxx2@gmail.com");
     assert_eq!(response.data.pan, "FYxxxxxx0S");
     assert_eq!(response.data.fy_id, "FX0011");
