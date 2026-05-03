@@ -18,10 +18,11 @@ use crate::models::ws::{
     DataUnsubscribeRequest,
 };
 use crate::ws::data_protocol::{
-    self, ScripFeed, build_auth_message, build_channel_bitmap_message,
-    build_channel_bitmap_message_with_marker, build_subscribe_message, build_unsubscribe_message,
-    data_type, depth_update_from_feed, extract_hsm_key, index_update_from_feed, mode,
-    parse_datafeed, parse_envelope, req_type, symbol_update_from_feed,
+    self, ScripFeed, ack_count_from_auth_envelope, build_ack_message, build_auth_message,
+    build_channel_bitmap_message, build_channel_bitmap_message_with_marker,
+    build_subscribe_message, build_unsubscribe_message, data_type, datafeed_message_num,
+    depth_update_from_feed, extract_hsm_key, index_update_from_feed, mode, parse_datafeed,
+    parse_envelope, req_type, symbol_update_from_feed,
 };
 use crate::ws::data_symbols;
 use crate::ws::manager::{
@@ -99,6 +100,10 @@ pub struct DataSocketConnection<S = LiveWebSocket> {
     subscriptions: Vec<DataSubscribeRequest>,
     topic_to_input: HashMap<String, String>,
     pending_events: VecDeque<DataSocketEvent>,
+    ack_count: u32,
+    update_count: u32,
+    last_message_num: u32,
+    pending_ack: Option<u32>,
 }
 
 impl<S> DataSocketConnection<S>
@@ -143,6 +148,10 @@ where
             subscriptions: Vec::new(),
             topic_to_input: HashMap::new(),
             pending_events: VecDeque::new(),
+            ack_count: 0,
+            update_count: 0,
+            last_message_num: 0,
+            pending_ack: None,
         })
     }
 
@@ -291,6 +300,10 @@ where
     /// Receive the next typed market-data event.
     pub async fn next_event(&mut self) -> Result<Option<DataSocketEvent>> {
         loop {
+            if let Some(message_num) = self.pending_ack.take() {
+                let ack = build_ack_message(message_num);
+                self.send_binary(ack).await?;
+            }
             if let Some(event) = self.pending_events.pop_front() {
                 return Ok(Some(event));
             }
@@ -312,6 +325,12 @@ where
         }
     }
 
+    /// Server-advertised ack threshold from field 2 of the auth response.
+    /// Zero until the first auth ack is processed.
+    pub const fn ack_count(&self) -> u32 {
+        self.ack_count
+    }
+
     /// Close the socket.
     pub async fn close(&mut self) -> Result<()> {
         self.socket.close().await
@@ -328,10 +347,26 @@ where
         let req = bytes[2];
         match req {
             req_type::DATAFEED => {
+                if let Some(num) = datafeed_message_num(bytes) {
+                    self.last_message_num = num;
+                }
                 let feeds = parse_datafeed(bytes)?;
+                let saw_market_payload = feeds.iter().any(|f| {
+                    matches!(
+                        f.data_type,
+                        data_type::SNAPSHOT | data_type::UPDATE | data_type::LITE
+                    )
+                });
                 for feed in &feeds {
                     if let Some(event) = self.feed_to_event(feed) {
                         self.pending_events.push_back(event);
+                    }
+                }
+                if saw_market_payload && self.ack_count > 0 {
+                    self.update_count = self.update_count.saturating_add(1);
+                    if self.update_count >= self.ack_count {
+                        self.pending_ack = Some(self.last_message_num);
+                        self.update_count = 0;
                     }
                 }
             }
@@ -340,6 +375,9 @@ where
             }
             req_type::AUTH => {
                 let env = parse_envelope(bytes)?;
+                if let Some(count) = ack_count_from_auth_envelope(&env) {
+                    self.ack_count = count;
+                }
                 self.pending_events
                     .push_back(DataSocketEvent::Connected(envelope_to_control(
                         &env, "cn", "Authentication done",

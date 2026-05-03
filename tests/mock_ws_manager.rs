@@ -87,6 +87,71 @@ async fn data_manager_pongs_pings_between_binary_frames() {
 }
 
 #[tokio::test]
+async fn data_manager_decodes_synthetic_update_and_sends_ack() {
+    // Builds a minimal fake auth response that advertises ack_count=1, then
+    // drives two synthetic data_type=0x55 update frames at the socket.
+    // After the second update, the connection must enqueue an ack frame
+    // carrying the latest message_num (= 7 in this fixture).
+    let auth_resp = vec![
+        0x00, 0x0d, 0x01, 0x03, // header: data_len=13, req_type=auth, fc=3
+        0x01, 0x00, 0x01, b'K', // field 1
+        0x02, 0x00, 0x02, 0x00, 0x01, // field 2 = ack_count = 1
+        0x03, 0x00, 0x00, // field 3 (empty placeholder)
+    ];
+
+    let mut update = Vec::new();
+    update.extend_from_slice(&[0x00, 0x10, 0x06]); // data_len, req_type=DATAFEED
+    update.extend_from_slice(&7u32.to_be_bytes()); // message_num=7
+    update.extend_from_slice(&1u16.to_be_bytes()); // scrip_count=1
+    update.push(0x55); // data_type = update
+    update.extend_from_slice(&0u16.to_be_bytes()); // topic_id
+    let topic = b"sf|nse_cm|3045";
+    update.push(topic.len() as u8);
+    update.extend_from_slice(topic);
+    update.push(0x01); // 1 i32 field
+    update.extend_from_slice(&50_055_i32.to_be_bytes()); // ltp scaled = 500.55
+
+    let (stream, sent) = MockSocket::new(vec![
+        Message::Binary(auth_resp.into()),
+        Message::Binary(update.clone().into()),
+    ]);
+    let client = test_client_with_jwt();
+    let mut socket = client
+        .data_socket()
+        .connect_with_stream(stream)
+        .expect("connect_with_stream");
+
+    let connected = socket.next_event().await.unwrap().unwrap();
+    assert!(matches!(connected, DataSocketEvent::Connected(_)));
+    assert_eq!(socket.ack_count(), 1);
+
+    let event = socket.next_event().await.unwrap().unwrap();
+    match event {
+        DataSocketEvent::SymbolUpdate(update) => {
+            assert_eq!(update.symbol, "sf|nse_cm|3045");
+            assert!((update.ltp - 500.55).abs() < f64::EPSILON);
+            assert_eq!(update.event_type, "sf");
+        }
+        other => panic!("expected SymbolUpdate, got {other:?}"),
+    }
+
+    // The ack frame is queued for the next next_event() poll. Drive the loop
+    // forward; even with no more frames available it should send the ack
+    // before observing the closed stream.
+    let _ = socket.next_event().await;
+
+    let ack = sent_messages(&sent)
+        .into_iter()
+        .filter_map(|m| match m {
+            Message::Binary(b) => Some(b.to_vec()),
+            _ => None,
+        })
+        .find(|b| b.len() == 11 && b[2] == 0x03)
+        .expect("ack frame sent after ack_count updates");
+    assert_eq!(&ack[7..11], &7u32.to_be_bytes());
+}
+
+#[tokio::test]
 async fn data_manager_rejects_subscribe_request_over_5000_symbols() {
     let (stream, _) = MockSocket::new(Vec::new());
     let client = test_client_with_jwt();

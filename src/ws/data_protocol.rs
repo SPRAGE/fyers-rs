@@ -297,6 +297,42 @@ fn push_field(buf: &mut Vec<u8>, field_id: u8, value: &[u8]) {
     buf.extend_from_slice(value);
 }
 
+/// Build the documented binary acknowledgement frame (`req_type = 0x03`).
+///
+/// The Fyers V3 data socket sends the client an `ack_count` value in field 2
+/// of the auth response. The client must echo back the latest datafeed
+/// `message_num` every `ack_count` frames, otherwise the server applies
+/// flow-control and stops emitting updates after the first batch.
+pub fn build_ack_message(message_num: u32) -> Vec<u8> {
+    let mut buf = Vec::with_capacity(11);
+    buf.extend_from_slice(&9u16.to_be_bytes());
+    buf.push(req_type::ACK);
+    buf.push(0x01);
+    buf.push(0x01);
+    buf.extend_from_slice(&4u16.to_be_bytes());
+    buf.extend_from_slice(&message_num.to_be_bytes());
+    buf
+}
+
+/// Read the `ack_count` value the server publishes in field 2 of the auth
+/// response. Returns `None` for an unparseable or absent field.
+pub fn ack_count_from_auth_envelope(envelope: &Envelope<'_>) -> Option<u32> {
+    let bytes = envelope.field(2)?;
+    match bytes.len() {
+        2 => Some(u16::from_be_bytes([bytes[0], bytes[1]]) as u32),
+        4 => Some(u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])),
+        _ => None,
+    }
+}
+
+/// Read the BE u32 message number from a datafeed frame header (bytes 3..7).
+pub fn datafeed_message_num(data: &[u8]) -> Option<u32> {
+    if data.len() < 7 {
+        return None;
+    }
+    Some(u32::from_be_bytes([data[3], data[4], data[5], data[6]]))
+}
+
 /// Parsed control envelope. Used for auth/subscribe/full-mode/resume responses.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Envelope<'a> {
@@ -821,6 +857,49 @@ mod tests {
         );
         // Field 2 marker byte sits 4 (header) + 11 (field 1: id+len+8B bitmap) = 15.
         assert_eq!(bytes[18], mode::LITE_HEADER);
+    }
+
+    #[test]
+    fn ack_message_layout_matches_python_sdk() {
+        let bytes = build_ack_message(0x1234_5678);
+        assert_eq!(bytes.len(), 11);
+        assert_eq!(&bytes[..2], &[0x00, 0x09]);
+        assert_eq!(bytes[2], req_type::ACK);
+        assert_eq!(bytes[3], 0x01);
+        assert_eq!(bytes[4], 0x01);
+        assert_eq!(&bytes[5..7], &[0x00, 0x04]);
+        assert_eq!(&bytes[7..11], &0x1234_5678_u32.to_be_bytes());
+    }
+
+    #[test]
+    fn ack_count_extracted_from_2byte_auth_field() {
+        let bytes = [
+            0x00, 0x0d, 0x01, 0x03, // header
+            0x01, 0x00, 0x01, b'K', // field 1
+            0x02, 0x00, 0x02, 0x00, 0x02, // field 2 = ack_count = 2
+            0x03, 0x00, 0x00, // field 3 (empty placeholder)
+        ];
+        let env = parse_envelope(&bytes).unwrap();
+        assert_eq!(ack_count_from_auth_envelope(&env), Some(2));
+    }
+
+    #[test]
+    fn datafeed_message_num_reads_bytes_3_to_7() {
+        // Datafeed frames overload the envelope's field_count byte: byte 3 is
+        // already the high byte of the BE u32 message_num.
+        let mut bytes = vec![0x00, 0x10, req_type::DATAFEED];
+        bytes.extend_from_slice(&0x0000_002a_u32.to_be_bytes());
+        bytes.extend_from_slice(&[0x00, 0x00]);
+        assert_eq!(datafeed_message_num(&bytes), Some(0x2a));
+    }
+
+    #[test]
+    fn datafeed_message_num_matches_captured_snapshot() {
+        const FIXTURE: &[u8] = include_bytes!(
+            "../../fixtures/ws/data/captured/snapshot_NSE_SBIN-EQ.bin"
+        );
+        // The captured frame from M2b reported message_num = 2.
+        assert_eq!(datafeed_message_num(FIXTURE), Some(2));
     }
 
     #[test]
