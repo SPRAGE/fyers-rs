@@ -18,8 +18,9 @@ use crate::models::ws::{
     DataUnsubscribeRequest,
 };
 use crate::ws::data_protocol::{
-    self, DATA_VAL_FIELDS, ScripFeed, build_auth_message, build_channel_bitmap_message,
-    build_subscribe_message, build_unsubscribe_message, data_type, extract_hsm_key, mode,
+    self, ScripFeed, build_auth_message, build_channel_bitmap_message,
+    build_channel_bitmap_message_with_marker, build_subscribe_message, build_unsubscribe_message,
+    data_type, depth_update_from_feed, extract_hsm_key, index_update_from_feed, mode,
     parse_datafeed, parse_envelope, req_type, symbol_update_from_feed,
 };
 use crate::ws::data_symbols;
@@ -160,8 +161,9 @@ where
         &mut self.socket
     }
 
-    /// Send the documented auth + full-mode + channel-resume handshake frames.
+    /// Send the documented auth + mode + channel-resume handshake frames.
     ///
+    /// The mode (full vs lite) is taken from [`DataSocketConfig::lite_mode`].
     /// Each frame is sent without waiting for the corresponding ack — acks
     /// arrive as [`DataSocketEvent::Connected`] / [`DataSocketEvent::Mode`]
     /// events the next time [`Self::next_event`] is polled.
@@ -174,9 +176,17 @@ where
         let auth_msg = build_auth_message(&self.hsm_key, channel_mode, &self.source_id);
         self.send_binary(auth_msg).await?;
 
-        let full_mode_msg =
-            build_channel_bitmap_message(req_type::FULL_MODE, self.channel_num);
-        self.send_binary(full_mode_msg).await?;
+        let mode_marker = if self.config.lite_mode {
+            mode::LITE_HEADER
+        } else {
+            mode::FULL_HEADER
+        };
+        let mode_msg = build_channel_bitmap_message_with_marker(
+            req_type::FULL_MODE,
+            self.channel_num,
+            mode_marker,
+        );
+        self.send_binary(mode_msg).await?;
 
         let resume_msg =
             build_channel_bitmap_message(req_type::CHANNEL_RESUME, self.channel_num);
@@ -379,35 +389,33 @@ where
     }
 
     fn feed_to_event(&self, feed: &ScripFeed<'_>) -> Option<DataSocketEvent> {
-        if feed.data_type != data_type::SNAPSHOT && feed.data_type != data_type::UPDATE {
+        if !matches!(
+            feed.data_type,
+            data_type::SNAPSHOT | data_type::UPDATE | data_type::LITE
+        ) {
             return None;
         }
-        let mut update = symbol_update_from_feed(feed);
-        if let Some(input) = self.topic_to_input.get(feed.topic_name) {
-            update.symbol = input.clone();
-        }
-        let kind = topic_kind(feed.topic_name);
-        match kind {
+        let user_symbol = self
+            .topic_to_input
+            .get(feed.topic_name)
+            .cloned()
+            .unwrap_or_else(|| feed.topic_name.to_owned());
+
+        match topic_kind(feed.topic_name) {
             TopicKind::Index => {
-                let _ = DATA_VAL_FIELDS; // referenced via symbol_update_from_feed
-                Some(DataSocketEvent::IndexUpdate(crate::models::ws::IndexUpdate {
-                    event_type: "if".to_owned(),
-                    symbol: update.symbol.clone(),
-                    ltp: update.ltp,
-                    prev_close_price: update.prev_close_price.unwrap_or(0.0),
-                    high_price: update.high_price.unwrap_or(0.0),
-                    low_price: update.low_price.unwrap_or(0.0),
-                    open_price: update.open_price.unwrap_or(0.0),
-                    ch: update.ch.unwrap_or(0.0),
-                    chp: update.chp.unwrap_or(0.0),
-                    exch_feed_time: update.exch_feed_time,
-                }))
+                let mut event = index_update_from_feed(feed);
+                event.symbol = user_symbol;
+                Some(DataSocketEvent::IndexUpdate(event))
             }
-            TopicKind::Symbol => Some(DataSocketEvent::SymbolUpdate(update)),
             TopicKind::Depth => {
-                // Depth payload uses a different field schema (`depthvalue`)
-                // not yet wired through this connection; skip until M4 follow-up.
-                None
+                let mut event = depth_update_from_feed(feed);
+                event.symbol = user_symbol;
+                Some(DataSocketEvent::DepthUpdate(event))
+            }
+            TopicKind::Symbol => {
+                let mut event = symbol_update_from_feed(feed);
+                event.symbol = user_symbol;
+                Some(DataSocketEvent::SymbolUpdate(event))
             }
             TopicKind::Other => None,
         }

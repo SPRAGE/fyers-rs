@@ -25,7 +25,7 @@ use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
 use crate::error::{FyersError, Result};
-use crate::models::ws::SymbolUpdate;
+use crate::models::ws::{DepthUpdate, IndexUpdate, SymbolUpdate};
 
 /// `req_type` byte values used on requests we send.
 pub mod req_type {
@@ -48,13 +48,19 @@ pub mod data_type {
     pub const FULL_HEADER: u8 = 0x46;
 }
 
-/// Channel mode marker carried in the auth message.
+/// Channel mode marker carried in the auth message and full/lite mode set messages.
 pub mod mode {
+    /// Marker placed in the auth message field 2 to request full mode.
     pub const FULL: u8 = b'P';
+    /// Marker placed in the auth message field 2 to request lite mode.
     pub const LITE: u8 = b'L';
+    /// Marker emitted by the channel-mode set message to select full mode.
+    pub const FULL_HEADER: u8 = 0x46;
+    /// Marker emitted by the channel-mode set message to select lite mode.
+    pub const LITE_HEADER: u8 = 0x4c;
 }
 
-/// Documented fields emitted in snapshot/update payloads, in order.
+/// Documented fields emitted in snapshot/update payloads in full mode.
 ///
 /// Source: `fyers_apiv3/FyersWebsocket/map.json` `data_val`. The server
 /// echoes the same ordering in the per-session schema dictionary returned
@@ -84,9 +90,64 @@ pub const DATA_VAL_FIELDS: &[&str] = &[
     "prev_close_price",
 ];
 
+/// Documented fields emitted in lite-mode payloads (`data_type = 0x4c`).
+///
+/// Source: `fyers_apiv3/FyersWebsocket/map.json` `lite_val`, dropping the
+/// trailing `symbol`/`type` metadata which travel outside the i32 array.
+pub const LITE_VAL_FIELDS: &[&str] = &["ltp"];
+
+/// Documented fields emitted for index symbols (`if|...` topics).
+///
+/// Source: `map.json` `index_val`, less the trailing metadata.
+pub const INDEX_VAL_FIELDS: &[&str] = &[
+    "ltp",
+    "prev_close_price",
+    "exch_feed_time",
+    "high_price",
+    "low_price",
+    "open_price",
+];
+
+/// Documented fields emitted for depth/L2 payloads (`dp|...` topics).
+///
+/// Source: `map.json` `depthvalue`, less the trailing metadata. 30 i32
+/// fields covering 5 levels each of bid/ask price, size, and order count.
+pub const DEPTH_VAL_FIELDS: &[&str] = &[
+    "bid_price1",
+    "bid_price2",
+    "bid_price3",
+    "bid_price4",
+    "bid_price5",
+    "ask_price1",
+    "ask_price2",
+    "ask_price3",
+    "ask_price4",
+    "ask_price5",
+    "bid_size1",
+    "bid_size2",
+    "bid_size3",
+    "bid_size4",
+    "bid_size5",
+    "ask_size1",
+    "ask_size2",
+    "ask_size3",
+    "ask_size4",
+    "ask_size5",
+    "bid_order1",
+    "bid_order2",
+    "bid_order3",
+    "bid_order4",
+    "bid_order5",
+    "ask_order1",
+    "ask_order2",
+    "ask_order3",
+    "ask_order4",
+    "ask_order5",
+];
+
 /// Field identifiers that index into the price-scaled subset (×100 → rupees).
 fn is_price_field(name: &str) -> bool {
-    matches!(
+    if matches!(
         name,
         "ltp"
             | "bid_price"
@@ -100,7 +161,10 @@ fn is_price_field(name: &str) -> bool {
             | "upper_ckt"
             | "open_price"
             | "prev_close_price"
-    )
+    ) {
+        return true;
+    }
+    name.starts_with("bid_price") || name.starts_with("ask_price")
 }
 
 /// Extract `hsm_key` from an APIv3 access-token JWT payload.
@@ -147,8 +211,19 @@ pub fn build_auth_message(hsm_token: &str, channel_mode: u8, source: &str) -> Ve
     buf
 }
 
-/// Build a channel-bitmap message used by full-mode and channel-resume requests.
+/// Build a channel-bitmap message for the full-mode (`0x0c`) request, using
+/// the documented full-mode marker (`0x46`).
 pub fn build_channel_bitmap_message(req: u8, channel_num: u8) -> Vec<u8> {
+    build_channel_bitmap_message_with_marker(req, channel_num, mode::FULL_HEADER)
+}
+
+/// Build a channel-bitmap message with an explicit mode marker, allowing the
+/// caller to pick between full mode (`0x46`) and lite mode (`0x4c`).
+pub fn build_channel_bitmap_message_with_marker(
+    req: u8,
+    channel_num: u8,
+    mode_marker: u8,
+) -> Vec<u8> {
     let mut buf = Vec::new();
     buf.extend_from_slice(&0u16.to_be_bytes());
     buf.push(req);
@@ -162,7 +237,7 @@ pub fn build_channel_bitmap_message(req: u8, channel_num: u8) -> Vec<u8> {
     push_field(&mut buf, 1, &bitmap.to_be_bytes());
 
     if req == req_type::FULL_MODE {
-        push_field(&mut buf, 2, &[data_type::FULL_HEADER]);
+        push_field(&mut buf, 2, &[mode_marker]);
     }
     buf
 }
@@ -346,13 +421,34 @@ pub fn parse_datafeed(data: &[u8]) -> Result<Vec<ScripFeed<'_>>> {
     Ok(feeds)
 }
 
+/// Choose which named-field schema applies to a given feed.
+///
+/// `lite_val` is selected for any feed whose `data_type` byte is the
+/// documented lite-mode marker, regardless of topic. Otherwise the topic
+/// prefix decides: `sf|...` -> `data_val`, `if|...` -> `index_val`,
+/// `dp|...` -> `depth_val`.
+pub fn schema_for_feed(feed: &ScripFeed<'_>) -> &'static [&'static str] {
+    if feed.data_type == data_type::LITE {
+        return LITE_VAL_FIELDS;
+    }
+    match feed.topic_name.split('|').next() {
+        Some("if") => INDEX_VAL_FIELDS,
+        Some("dp") => DEPTH_VAL_FIELDS,
+        _ => DATA_VAL_FIELDS,
+    }
+}
+
 /// Convert a parsed `ScripFeed` of `data_val`-ordered i32 values into a typed
-/// [`SymbolUpdate`] event.
-pub fn symbol_update_from_feed(feed: &ScripFeed<'_>) -> SymbolUpdate {
+/// [`SymbolUpdate`] event. Use [`schema_for_feed`] to pick the schema; for
+/// lite-mode feeds pass [`LITE_VAL_FIELDS`].
+pub fn symbol_update_from_feed_with_schema(
+    feed: &ScripFeed<'_>,
+    schema: &[&str],
+) -> SymbolUpdate {
     let mut update = SymbolUpdate {
         event_type: match feed.data_type {
-            data_type::SNAPSHOT => "sf".to_owned(),
-            data_type::UPDATE => "sf".to_owned(),
+            data_type::SNAPSHOT | data_type::UPDATE => "sf".to_owned(),
+            data_type::LITE => "lit".to_owned(),
             other => format!("0x{other:02x}"),
         },
         symbol: ticker_from_topic(feed.topic_name),
@@ -377,7 +473,7 @@ pub fn symbol_update_from_feed(feed: &ScripFeed<'_>) -> SymbolUpdate {
     };
 
     for (i, &raw) in feed.field_values.iter().enumerate() {
-        let Some(name) = DATA_VAL_FIELDS.get(i).copied() else {
+        let Some(name) = schema.get(i).copied() else {
             continue;
         };
         let scaled = if is_price_field(name) {
@@ -406,15 +502,149 @@ pub fn symbol_update_from_feed(feed: &ScripFeed<'_>) -> SymbolUpdate {
         }
     }
 
-    if let (Some(ltp), Some(prev)) = (Some(update.ltp), update.prev_close_price) {
-        let ch = ltp - prev;
-        update.ch = Some(round2(ch));
+    if update.prev_close_price.is_some() {
+        let prev = update.prev_close_price.unwrap_or(0.0);
         if prev != 0.0 {
+            let ch = update.ltp - prev;
+            update.ch = Some(round2(ch));
             update.chp = Some(round2(ch / prev * 100.0));
         }
     }
 
     update
+}
+
+/// Backwards-compatible helper assuming the full-mode `data_val` schema.
+pub fn symbol_update_from_feed(feed: &ScripFeed<'_>) -> SymbolUpdate {
+    symbol_update_from_feed_with_schema(feed, schema_for_feed(feed))
+}
+
+/// Convert a parsed `ScripFeed` for an `if|...` topic into an [`IndexUpdate`].
+pub fn index_update_from_feed(feed: &ScripFeed<'_>) -> IndexUpdate {
+    let mut ltp = 0.0;
+    let mut prev_close_price = 0.0;
+    let mut high_price = 0.0;
+    let mut low_price = 0.0;
+    let mut open_price = 0.0;
+    let mut exch_feed_time: Option<i64> = None;
+
+    for (i, &raw) in feed.field_values.iter().enumerate() {
+        let Some(name) = INDEX_VAL_FIELDS.get(i).copied() else {
+            continue;
+        };
+        let scaled = if is_price_field(name) {
+            f64::from(raw) / 100.0
+        } else {
+            f64::from(raw)
+        };
+        match name {
+            "ltp" => ltp = scaled,
+            "prev_close_price" => prev_close_price = scaled,
+            "high_price" => high_price = scaled,
+            "low_price" => low_price = scaled,
+            "open_price" => open_price = scaled,
+            "exch_feed_time" => exch_feed_time = Some(i64::from(raw)),
+            _ => {}
+        }
+    }
+
+    let (ch, chp) = if prev_close_price != 0.0 {
+        let diff = ltp - prev_close_price;
+        (
+            round2(diff),
+            round2(diff / prev_close_price * 100.0),
+        )
+    } else {
+        (0.0, 0.0)
+    };
+
+    IndexUpdate {
+        event_type: "if".to_owned(),
+        symbol: ticker_from_topic(feed.topic_name),
+        ltp,
+        prev_close_price,
+        high_price,
+        low_price,
+        open_price,
+        ch,
+        chp,
+        exch_feed_time,
+    }
+}
+
+/// Convert a parsed `ScripFeed` for a `dp|...` topic into a [`DepthUpdate`].
+pub fn depth_update_from_feed(feed: &ScripFeed<'_>) -> DepthUpdate {
+    let mut prices = [0.0_f64; 10];
+    let mut sizes = [0_i64; 10];
+    let mut orders = [0_i64; 10];
+
+    for (i, &raw) in feed.field_values.iter().enumerate() {
+        let Some(name) = DEPTH_VAL_FIELDS.get(i).copied() else {
+            continue;
+        };
+        if let Some(level) = depth_level_index(name) {
+            if name.starts_with("bid_price") {
+                prices[level] = f64::from(raw) / 100.0;
+            } else if name.starts_with("ask_price") {
+                prices[5 + level] = f64::from(raw) / 100.0;
+            } else if name.starts_with("bid_size") {
+                sizes[level] = i64::from(raw);
+            } else if name.starts_with("ask_size") {
+                sizes[5 + level] = i64::from(raw);
+            } else if name.starts_with("bid_order") {
+                orders[level] = i64::from(raw);
+            } else if name.starts_with("ask_order") {
+                orders[5 + level] = i64::from(raw);
+            }
+        }
+    }
+
+    DepthUpdate {
+        event_type: "dp".to_owned(),
+        symbol: ticker_from_topic(feed.topic_name),
+        bid_price1: prices[0],
+        bid_price2: prices[1],
+        bid_price3: prices[2],
+        bid_price4: prices[3],
+        bid_price5: prices[4],
+        ask_price1: prices[5],
+        ask_price2: prices[6],
+        ask_price3: prices[7],
+        ask_price4: prices[8],
+        ask_price5: prices[9],
+        bid_size1: sizes[0],
+        bid_size2: sizes[1],
+        bid_size3: sizes[2],
+        bid_size4: sizes[3],
+        bid_size5: sizes[4],
+        ask_size1: sizes[5],
+        ask_size2: sizes[6],
+        ask_size3: sizes[7],
+        ask_size4: sizes[8],
+        ask_size5: sizes[9],
+        bid_order1: orders[0],
+        bid_order2: orders[1],
+        bid_order3: orders[2],
+        bid_order4: orders[3],
+        bid_order5: orders[4],
+        ask_order1: orders[5],
+        ask_order2: orders[6],
+        ask_order3: orders[7],
+        ask_order4: orders[8],
+        ask_order5: orders[9],
+    }
+}
+
+fn depth_level_index(name: &str) -> Option<usize> {
+    let suffix = name.chars().last()?;
+    match suffix {
+        '1' => Some(0),
+        '2' => Some(1),
+        '3' => Some(2),
+        '4' => Some(3),
+        '5' => Some(4),
+        _ => None,
+    }
 }
 
 fn round2(x: f64) -> f64 {
@@ -580,5 +810,138 @@ mod tests {
         let jwt = format!("{header}.{payload}.sig");
         let err = extract_hsm_key(&jwt).unwrap_err();
         assert!(format!("{err}").contains("no hsm_key"));
+    }
+
+    #[test]
+    fn full_mode_marker_can_be_overridden_for_lite() {
+        let bytes = build_channel_bitmap_message_with_marker(
+            req_type::FULL_MODE,
+            11,
+            mode::LITE_HEADER,
+        );
+        // Field 2 marker byte sits 4 (header) + 11 (field 1: id+len+8B bitmap) = 15.
+        assert_eq!(bytes[18], mode::LITE_HEADER);
+    }
+
+    #[test]
+    fn schema_for_feed_picks_lite_for_lite_data_type() {
+        let feed = ScripFeed {
+            data_type: data_type::LITE,
+            topic_id: 0,
+            topic_name: "sf|nse_cm|3045",
+            field_values: vec![100],
+        };
+        assert_eq!(schema_for_feed(&feed), LITE_VAL_FIELDS);
+    }
+
+    #[test]
+    fn schema_for_feed_picks_index_for_if_topic() {
+        let feed = ScripFeed {
+            data_type: data_type::SNAPSHOT,
+            topic_id: 0,
+            topic_name: "if|nse_cm|26000",
+            field_values: vec![],
+        };
+        assert_eq!(schema_for_feed(&feed), INDEX_VAL_FIELDS);
+    }
+
+    #[test]
+    fn schema_for_feed_picks_depth_for_dp_topic() {
+        let feed = ScripFeed {
+            data_type: data_type::SNAPSHOT,
+            topic_id: 0,
+            topic_name: "dp|nse_cm|3045",
+            field_values: vec![],
+        };
+        assert_eq!(schema_for_feed(&feed), DEPTH_VAL_FIELDS);
+    }
+
+    #[test]
+    fn lite_mode_feed_only_populates_ltp_on_symbol_update() {
+        let feed = ScripFeed {
+            data_type: data_type::LITE,
+            topic_id: 7,
+            topic_name: "sf|nse_cm|3045",
+            field_values: vec![50055], // 500.55 in scaled rupees
+        };
+        let update = symbol_update_from_feed(&feed);
+        assert_eq!(update.event_type, "lit");
+        assert!((update.ltp - 500.55).abs() < f64::EPSILON);
+        assert!(update.prev_close_price.is_none());
+        assert!(update.high_price.is_none());
+        assert!(update.bid_price.is_none());
+    }
+
+    #[test]
+    fn index_feed_with_synthetic_values_decodes_to_index_update() {
+        // ltp=2618810, prev_close=2621605, ts=1727428424,
+        // high=2627735, low=2616695, open=2624825 — Nifty50-shaped
+        let feed = ScripFeed {
+            data_type: data_type::SNAPSHOT,
+            topic_id: 11,
+            topic_name: "if|nse_cm|26000",
+            field_values: vec![2_618_810, 2_621_605, 1_727_428_424, 2_627_735, 2_616_695, 2_624_825],
+        };
+        let update = index_update_from_feed(&feed);
+        assert_eq!(update.symbol, "if|nse_cm|26000");
+        assert!((update.ltp - 26188.10).abs() < f64::EPSILON);
+        assert!((update.prev_close_price - 26216.05).abs() < f64::EPSILON);
+        assert!((update.high_price - 26277.35).abs() < f64::EPSILON);
+        assert!((update.low_price - 26166.95).abs() < f64::EPSILON);
+        assert!((update.open_price - 26248.25).abs() < f64::EPSILON);
+        assert_eq!(update.exch_feed_time, Some(1_727_428_424));
+        assert!(update.ch < 0.0); // 26188.10 < 26216.05
+        assert!(update.chp < 0.0);
+    }
+
+    #[test]
+    fn depth_feed_with_synthetic_values_decodes_five_levels_each_side() {
+        // 5 bid prices, 5 ask prices, 5 bid sizes, 5 ask sizes,
+        // 5 bid orders, 5 ask orders. All scaled prices ×100.
+        let mut values = Vec::with_capacity(30);
+        // bids: 1068.45, 1068.40, 1068.35, 1068.30, 1068.25
+        for i in 0..5_i32 {
+            values.push(106_845 - 5 * i);
+        }
+        // asks: 1068.50, 1068.55, 1068.60, 1068.65, 1068.70
+        for i in 0..5_i32 {
+            values.push(106_850 + 5 * i);
+        }
+        // bid sizes 100..500
+        for i in 0..5_i32 {
+            values.push((i + 1) * 100);
+        }
+        // ask sizes 200..600
+        for i in 0..5_i32 {
+            values.push((i + 2) * 100);
+        }
+        // bid orders / ask orders
+        for i in 0..5_i32 {
+            values.push(i + 1);
+        }
+        for i in 0..5_i32 {
+            values.push(i + 6);
+        }
+
+        let feed = ScripFeed {
+            data_type: data_type::SNAPSHOT,
+            topic_id: 99,
+            topic_name: "dp|nse_cm|3045",
+            field_values: values,
+        };
+        let depth = depth_update_from_feed(&feed);
+        assert_eq!(depth.symbol, "dp|nse_cm|3045");
+        assert!((depth.bid_price1 - 1068.45).abs() < f64::EPSILON);
+        assert!((depth.bid_price5 - 1068.25).abs() < f64::EPSILON);
+        assert!((depth.ask_price1 - 1068.50).abs() < f64::EPSILON);
+        assert!((depth.ask_price5 - 1068.70).abs() < f64::EPSILON);
+        assert_eq!(depth.bid_size1, 100);
+        assert_eq!(depth.bid_size5, 500);
+        assert_eq!(depth.ask_size1, 200);
+        assert_eq!(depth.ask_size5, 600);
+        assert_eq!(depth.bid_order1, 1);
+        assert_eq!(depth.ask_order1, 6);
+        assert_eq!(depth.bid_order5, 5);
+        assert_eq!(depth.ask_order5, 10);
     }
 }
