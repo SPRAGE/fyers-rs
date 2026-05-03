@@ -1,10 +1,10 @@
-//! M1 proof-of-concept: connect to the Fyers V3 data socket, send the binary
-//! auth handshake matching the official Python SDK byte-for-byte, and print
-//! the first server response.
+//! Low-level demo: connect to the Fyers V3 data socket, send the documented
+//! binary auth-handshake frame (matching the official Python SDK byte-for-byte),
+//! and pretty-print the first server response in hex.
 //!
-//! This example bypasses `src/ws/data.rs` entirely because that module
-//! implements an abstract JSON protocol that does not match the real wire
-//! format. If this PoC succeeds, the real implementation is rebuilt around it.
+//! Useful for protocol debugging. For ordinary streaming use the public
+//! [`fyers_rs::FyersClient::data_socket`] API instead — see
+//! `examples/data_socket_symbol_update.rs`.
 
 use std::time::Duration;
 

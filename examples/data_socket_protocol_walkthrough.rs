@@ -1,16 +1,20 @@
-//! M2b: full Fyers V3 data-socket flow including the steps M2 was missing.
+//! Low-level walkthrough of the complete Fyers V3 data-socket protocol,
+//! bypassing [`fyers_rs::FyersClient::data_socket`] to exercise each step
+//! explicitly:
 //!
-//! On top of M2, this:
-//!   1. POSTs to https://api-t1.fyers.in/data/symbol-token to convert
-//!      "NSE:SBIN-EQ" -> fytoken -> "sf|nse_cm|<exch_token>" HSM symbol.
-//!   2. Sends __full_mode_msg (req_type=12) right after auth.
-//!   3. Sends __channel_resume_msg (req_type=8) before subscribe.
-//!   4. Subscribes with HSM tokens, not raw NSE:SBIN-EQ strings.
+//! 1. POST `https://api-t1.fyers.in/data/symbol-token` to convert
+//!    `NSE:SBIN-EQ` → fytoken → `sf|nse_cm|<exch_token>` HSM symbol.
+//! 2. Open the WebSocket and send the binary auth frame (`req_type=0x01`).
+//! 3. Send the channel-mode set frame (`req_type=0x0c`) for full mode.
+//! 4. Send the channel-resume frame (`req_type=0x08`).
+//! 5. Send the binary subscribe frame (`req_type=0x04`) with HSM topics.
+//! 6. Read responses, decode each envelope, save raw bytes to `/tmp`.
 //!
-//! Goal: receive a real MarketFeed snapshot of last-traded values even with
-//! markets closed.
+//! Useful for protocol debugging and as documentation of the full
+//! handshake. For ordinary streaming use the public client API — see
+//! `examples/data_socket_symbol_update.rs`.
 //!
-//! Reference: official Python SDK (fyers-apiv3 3.1.12) data_ws.py.
+//! Reference: official Python SDK (fyers-apiv3 3.1.12) `data_ws.py`.
 
 use std::collections::HashMap;
 use std::time::Duration;
@@ -69,30 +73,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("[1] sending auth ({} bytes)", auth_msg.len());
     stream.send(Message::Binary(Bytes::from(auth_msg))).await?;
     let auth_resp = read_next_binary(&mut stream, "auth resp").await?;
-    save("/tmp/m2b_auth_resp.bin", &auth_resp);
+    save("/tmp/fyers_walkthrough_auth_resp.bin", &auth_resp);
     let env = parse_envelope(&auth_resp)?;
     print_envelope("[1] auth resp", &env);
 
     let full_mode = build_channel_bitmap_message(REQ_FULL_MODE, CHANNEL_NUM);
     println!("[2] sending full_mode ({} bytes)", full_mode.len());
-    save("/tmp/m2b_full_mode_req.bin", &full_mode);
+    save("/tmp/fyers_walkthrough_full_mode_req.bin", &full_mode);
     stream.send(Message::Binary(Bytes::from(full_mode))).await?;
 
     let resume = build_channel_bitmap_message(REQ_CHANNEL_RESUME, CHANNEL_NUM);
     println!("[3] sending channel_resume ({} bytes)", resume.len());
-    save("/tmp/m2b_resume_req.bin", &resume);
+    save("/tmp/fyers_walkthrough_resume_req.bin", &resume);
     stream.send(Message::Binary(Bytes::from(resume))).await?;
 
     let sub = build_subscribe_message(&hsm_symbols, CHANNEL_NUM, &access_token_raw, SOURCE_ID);
     println!("[4] sending subscribe ({} bytes) with HSM tokens", sub.len());
-    save("/tmp/m2b_sub_req.bin", &sub);
+    save("/tmp/fyers_walkthrough_sub_req.bin", &sub);
     stream.send(Message::Binary(Bytes::from(sub))).await?;
 
     println!("waiting for response frames (up to 8)...");
     for n in 1..=8 {
         match timeout(Duration::from_secs(8), stream.next()).await {
             Ok(Some(Ok(Message::Binary(b)))) => {
-                let path = format!("/tmp/m2b_frame_{n}.bin");
+                let path = format!("/tmp/fyers_walkthrough_frame_{n}.bin");
                 save(&path, &b);
                 println!("[#{n}] BINARY {} bytes -> {path}", b.len());
                 match parse_envelope(&b) {

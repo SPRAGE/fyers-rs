@@ -1,5 +1,9 @@
-//! M2 proof-of-concept: M1 auth handshake + binary subscribe + observe the
-//! first snapshot frame for a symbol. Saves raw frames to /tmp for analysis.
+//! Low-level demo: auth handshake + binary subscribe sent with the **raw**
+//! `NSE:SBIN-EQ`-style symbol string (no HSM-token resolution). The server
+//! acks the subscribe but does not emit market data because the topic name
+//! is not a valid HSM token — useful for illustrating why
+//! `data_socket_protocol_walkthrough.rs` performs the symbol-token lookup.
+//! Saves raw frames to `/tmp` for analysis.
 
 use std::time::Duration;
 
