@@ -1,9 +1,10 @@
 //! Idiomatic async Rust client for the documented Fyers broker APIs.
 //!
 //! The crate is organized around a single [`FyersClient`] with typed accessors
-//! for auth, REST, and WebSocket surfaces. Implemented coverage is tracked in
-//! a local Fyers docs inventory and validated with fixture-backed contract tests
-//! plus mock transport/socket tests.
+//! for auth, REST, and WebSocket surfaces. The market-data WebSocket talks the
+//! real Fyers V3 binary protocol (auth handshake, channel-mode set, channel
+//! resume, HSM-token-resolved subscribe, `ack` flow control) — see
+//! [`ws::DataSocketConnection`] and [`ws::data_protocol`].
 //!
 //! # Quick start
 //!
@@ -24,8 +25,16 @@
 //! # REST and WebSocket APIs
 //!
 //! REST services live under [`rest`] and typed request/response/event models live
-//! under [`models`]. WebSocket managers are exposed through [`ws`] and separate
-//! manager I/O from frame parsing so the protocol boundary remains testable.
+//! under [`models`]. WebSocket managers are exposed through [`ws`].
+//!
+//! # Verification status
+//!
+//! The market-data WebSocket and the profile/funds/holdings REST endpoints
+//! have been live-verified end-to-end. **REST order placement, modification,
+//! and cancellation paths have never been live-fired** against a real Fyers
+//! account — the URLs and payload shapes match the official Python SDK, but
+//! a round-trip live order has not yet been performed through this crate.
+//! See the README's verification matrix and the per-module status notes.
 //!
 //! # Warning
 //!

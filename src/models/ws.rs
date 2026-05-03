@@ -100,7 +100,13 @@ pub struct DataControlEvent {
     pub s: String,
 }
 
-/// Symbol update event (`type = "sf"`).
+/// Symbol-update event.
+///
+/// On the binary wire (live data socket) this is emitted for every per-scrip
+/// payload whose topic name starts with `sf|...`, with `event_type` set to
+/// either `"sf"` (full mode snapshot/update) or `"lit"` (lite mode). In the
+/// legacy JSON event shape parsed by [`parse_data_event`] the `type` field
+/// of the source JSON object equals `"sf"`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SymbolUpdate {
     #[serde(rename = "type")]
@@ -144,7 +150,11 @@ pub struct SymbolUpdate {
     pub avg_trade_price: Option<f64>,
 }
 
-/// Index update event (`type = "if"`).
+/// Index-update event.
+///
+/// On the binary wire this is emitted for per-scrip payloads whose topic
+/// name starts with `if|...`. In the legacy JSON shape the source
+/// object's `type` field equals `"if"`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IndexUpdate {
     #[serde(rename = "type")]
@@ -168,7 +178,13 @@ pub struct IndexUpdate {
     pub exch_feed_time: Option<i64>,
 }
 
-/// Depth update event (`type = "dp"`).
+/// Depth-update event (5-level L2 order book).
+///
+/// On the binary wire this is emitted for per-scrip payloads whose topic
+/// name starts with `dp|...`. In the legacy JSON shape the source
+/// object's `type` field equals `"dp"`. Depth feeds require depth
+/// subscriptions ([`DataSubscriptionKind::DepthUpdate`]) and aren't
+/// emitted for index symbols.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DepthUpdate {
     #[serde(rename = "type")]
@@ -236,7 +252,16 @@ pub struct DepthUpdate {
     pub ask_order5: i64,
 }
 
-/// Parse a data-socket text frame into a typed event.
+/// Parse a JSON-shaped data-socket event.
+///
+/// **Note:** the live Fyers V3 data socket at `wss://socket.fyers.in/hsm/v1-5/prod`
+/// does not use JSON on the wire — it uses a length-prefixed binary
+/// envelope decoded by [`crate::ws::data_protocol::parse_envelope`] and
+/// [`crate::ws::data_protocol::parse_datafeed`]. This function exists for
+/// the legacy JSON shape documented in older Fyers materials, and is kept
+/// for compatibility with any tooling that emits or stores events in that
+/// format. The runtime data-socket path in [`crate::ws::DataSocketConnection`]
+/// does **not** call this function.
 pub fn parse_data_event(input: &str) -> Result<DataSocketEvent, String> {
     let value: serde_json::Value =
         serde_json::from_str(input).map_err(|err| format!("invalid data event JSON: {err}"))?;
