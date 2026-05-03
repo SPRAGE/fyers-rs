@@ -1,9 +1,8 @@
-#![allow(dead_code)]
-
 use fyers_rs::models::auth::ValidateAuthCodeRequest;
 use fyers_rs::{FyersClient, FyersError};
 
-async fn run() -> Result<(), FyersError> {
+#[tokio::main]
+async fn main() -> Result<(), FyersError> {
     let client = FyersClient::builder()
         .client_id(std::env::var("FYERS_CLIENT_ID").expect("FYERS_CLIENT_ID is required"))
         .secret_key(std::env::var("FYERS_SECRET_KEY").expect("FYERS_SECRET_KEY is required"))
@@ -14,12 +13,17 @@ async fn run() -> Result<(), FyersError> {
     );
     let token = client.auth().validate_auth_code(&request).await?;
 
-    println!("{token:?}");
-    Ok(())
-}
-
-fn main() {
+    println!("status: s={} code={} message={:?}", token.s, token.code, token.message);
     println!(
-        "Set FYERS_CLIENT_ID, FYERS_SECRET_KEY, and FYERS_AUTH_CODE, then call run() from an async runtime."
+        "access_token: {}",
+        token.access_token.as_deref().unwrap_or("(none)")
     );
+    println!(
+        "refresh_token: {}",
+        token.refresh_token.as_deref().unwrap_or("(none)")
+    );
+    eprintln!(
+        "\nTreat both tokens as secrets. Paste them into .env as FYERS_ACCESS_TOKEN and FYERS_REFRESH_TOKEN."
+    );
+    Ok(())
 }
