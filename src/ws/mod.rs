@@ -5,6 +5,8 @@
 //! to typed protocol models in [`crate::models::ws`].
 
 pub mod data;
+pub mod data_protocol;
+pub mod data_symbols;
 pub mod manager;
 pub mod order;
 pub mod protocol;

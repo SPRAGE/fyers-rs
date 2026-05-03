@@ -152,8 +152,7 @@ fn try_parse_auth_response(data: &[u8]) -> Option<String> {
         return None;
     }
     offset += 1;
-    let len = u16::from_be_bytes([data.get(offset)?.clone(), data.get(offset + 1)?.clone()])
-        as usize;
+    let len = u16::from_be_bytes([*data.get(offset)?, *data.get(offset + 1)?]) as usize;
     offset += 2;
     let value = data.get(offset..offset + len)?;
     let s = std::str::from_utf8(value).ok()?;
